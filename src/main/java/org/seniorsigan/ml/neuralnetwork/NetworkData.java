@@ -8,9 +8,9 @@ import java.io.Serializable;
  * Network's data storage. Can be easy converted to JSON.
  */
 public class NetworkData implements Serializable {
-    public final DoubleMatrix[] biases;
-    public final DoubleMatrix[] weights;
-    public final int layersCount;
+    public DoubleMatrix[] biases;
+    public DoubleMatrix[] weights;
+    public int layersCount;
 
     public NetworkData(DoubleMatrix[] biases, DoubleMatrix[] weights, int layersCount) {
         this.biases = biases;

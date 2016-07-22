@@ -9,6 +9,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DigitsRecognitionApp {
@@ -29,11 +31,11 @@ public class DigitsRecognitionApp {
         List<TrainPair> trainData = loader.load(res(trainDataPath), res(trainLabelsPath));
         List<TrainPair> testData = loader.load(res(testDataPath), res(testLabelsPath));
         //imageService.toImage(trainData.get(0).input.data);
-        Network n = new Network(NetworkData.build(new int[]{28*28, 100, 10}), (got, expected) -> {
+        Network n = new Network(NetworkData.build(new int[]{28*28, 100, 50, 10}), (got, expected) -> {
             //System.out.println("Got :"+ vectorToInt(got) + "; Expected: " + vectorToInt(expected));
             return vectorToInt(got) == vectorToInt(expected);
         });
-        n.train(trainData.subList(0,50000), 30, 100, 3.0, trainData.subList(50000, 60000));
+        n.train(new ArrayList<>(trainData.subList(0,50000)), 30, 100, 3.0, trainData.subList(50000, 60000));
         NetworkData nd = n.getNetworkData();
         FileWriter fw = new FileWriter("digits_nd.data");
         gson.toJson(nd, fw);

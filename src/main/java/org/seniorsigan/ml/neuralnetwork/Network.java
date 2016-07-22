@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import static org.seniorsigan.ml.neuralnetwork.Math.*;
+
 public class Network implements INetwork {
     private static final Logger log = LoggerFactory.getLogger(Network.class);
 
@@ -23,10 +25,11 @@ public class Network implements INetwork {
 
     @Override
     public double[] feedForward(final double[] input) {
-        DoubleMatrix res = new DoubleMatrix(input);
-        for (int i = 0; i < nd.biases.length; ++i) {
-            res = Math.sigmoid(Math.weighted(nd.weights[i], res, nd.biases[i]));
-        }
+        final DoubleMatrix res = new DoubleMatrix(input);
+        zip(nd.weights, nd.biases, (w, b) -> {
+            final DoubleMatrix newRes = sigmoid(Math.weighted(w, res, b));
+            res.copy(newRes);
+        });
         return res.toArray();
     }
 
@@ -55,65 +58,26 @@ public class Network implements INetwork {
     public double test(final List<TrainPair> testBatch) {
         int success = 0;
         for (final TrainPair p: testBatch) {
-            double[] res = feedForward(p.input.data);
-            if (comparator.compare(res, p.output.data)) success++;
+            double[] res = feedForward(p.input.toArray());
+            if (comparator.compare(res, p.output.toArray())) success++;
         }
         return success / (double)testBatch.size();
     }
 
-    private void update(final List<TrainPair> batch, final double learningRate) {
-        final DoubleMatrix[] nablaB = Math.zeroClone(nd.biases);
-        final DoubleMatrix[] nablaW = Math.zeroClone(nd.weights);
+    void update(final List<TrainPair> batch, final double learningRate) {
+        DoubleMatrix[] nablaB = zeroClone(nd.biases);
+        DoubleMatrix[] nablaW = zeroClone(nd.weights);
 
         for (final TrainPair tp: batch) {
-            final Pair<DoubleMatrix[], DoubleMatrix[]> delta = backProp(tp);
-            for (int i = 0; i < nablaB.length; ++i) {
-                nablaB[i] = nablaB[i].add(delta.first[i]);
-                nablaW[i] = nablaW[i].add(delta.second[i]);
-            }
+            final Pair<DoubleMatrix[], DoubleMatrix[]> delta = backProp(nd, tp);
+            nablaB = zipProduce(nablaB, delta.first, DoubleMatrix.class, DoubleMatrix::add);
+            nablaW = zipProduce(nablaW, delta.second, DoubleMatrix.class, DoubleMatrix::add);
         }
 
-        for (int i = 0; i < nd.biases.length; ++i) {
-            nd.biases[i] = Math.applyDelta(nd.biases[i], learningRate / batch.size(), nablaB[i]);
-            nd.weights[i] = Math.applyDelta(nd.weights[i], learningRate / batch.size(), nablaW[i]);
-        }
-    }
+        final Double eta = learningRate / batch.size();
 
-    /**
-     *
-     * @param batch
-     * @return (nablaB, nablaW)
-     */
-    Pair<DoubleMatrix[], DoubleMatrix[]> backProp(final TrainPair batch) {
-        final DoubleMatrix[] nablaB = Math.zeroClone(nd.biases);
-        final DoubleMatrix[] nablaW = Math.zeroClone(nd.weights);
-
-        final DoubleMatrix[] activations = new DoubleMatrix[nd.biases.length + 1];
-        final DoubleMatrix[] zs = new DoubleMatrix[nd.biases.length];
-
-        DoubleMatrix activation = batch.input;
-        activations[0] = batch.input;
-
-        for (int i = 0; i < nd.biases.length; ++i) {
-            final DoubleMatrix z = Math.weighted(nd.weights[i], activation, nd.biases[i]);
-            zs[i] = z;
-            activation = Math.sigmoid(z);
-            activations[i+1] = activation;
-        }
-
-        DoubleMatrix delta = Math.delta(activations[activations.length - 1], batch.output, zs[zs.length - 1]);
-        nablaB[nablaB.length - 1] = delta;
-        nablaW[nablaW.length - 1] = delta.mmul(activations[activations.length - 2].transpose());
-
-        for (int l = 2; l < nd.layersCount; ++l) {
-            final DoubleMatrix z = zs[zs.length - l];
-            final DoubleMatrix sp = Math.sigmoidDerivation(z);
-            delta = Math.mulMul(nd.weights[nd.weights.length - l + 1].transpose(), delta, sp);
-            nablaB[nablaB.length - l] = delta;
-            nablaW[nablaW.length - l] = delta.mmul(activations[activations.length - l - 1].transpose());
-        }
-
-        return new Pair<>(nablaB, nablaW);
+        nd.weights = zipProduce(nd.weights, nablaW, DoubleMatrix.class, (w, nw) -> applyDelta(w, eta, nw));
+        nd.biases = zipProduce(nd.biases, nablaB, DoubleMatrix.class, (b, nb) -> applyDelta(b, eta, nb));
     }
 
     /**

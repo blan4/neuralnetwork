@@ -3,9 +3,12 @@ package org.seniorsigan.ml.neuralnetwork;
 import org.jblas.DoubleMatrix;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.experimental.theories.suppliers.TestedOn;
 
 import java.lang.Math;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 public class NetworkTest {
@@ -31,22 +34,25 @@ public class NetworkTest {
                 TrainPair.build(new double[]{1,0}, new double[]{1}),
                 TrainPair.build(new double[]{1,1}, new double[]{0})
         };
-        nn.train(Arrays.asList(trainDataSet), 1000, 4, 2, Arrays.asList(trainDataSet));
+        nn.train(Arrays.asList(trainDataSet), 150, 4, 2, Arrays.asList(trainDataSet));
         Assert.assertEquals(1.0, nn.test(Arrays.asList(trainDataSet)), 0.1);
     }
 
     @Test
-    public void Should_Backprop() {
-        NetworkData nd = NetworkData.build(new int[]{2,4,1});
+    public void Should_Update() {
+        NetworkData nd = NetworkData.build(new int[]{2,3,1});
         nd.biases = new DoubleMatrix[]{
-                new DoubleMatrix(4,1, 1,0.5,-0.3,0.4),
+                new DoubleMatrix(3,1, 1,0.5,-0.3),
                 new DoubleMatrix(1,1, 0.1)
         };
         nd.weights = new DoubleMatrix[]{
-                new DoubleMatrix(4,2, 0.1,-1,-0.5,0.4,1,0.7,-0.2,0.8),
-                new DoubleMatrix(1,4, 0.5,0.3,-0.7,0.6)
+                new DoubleMatrix(3,2, 0.1,-1,-0.5,0.4,1,0.7),
+                new DoubleMatrix(1,3, 0.5,0.3,-0.7)
         };
         Network nn = new Network(nd, (got, expected) -> true);
-        nn.backProp(TrainPair.build(new double[]{0.3,0.4}, new double[]{0.1}));
+        List<TrainPair> train = new ArrayList<>();
+        train.add(TrainPair.build(new double[]{0.3,0.8}, new double[]{0.2}));
+        nn.update(train, 3.0);
+        System.out.println("Hello");
     }
 }
